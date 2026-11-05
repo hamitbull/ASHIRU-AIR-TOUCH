@@ -3,6 +3,7 @@ package com.ashiru.airtouch
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.GestureDescription
 import android.graphics.Path
+import android.os.Build
 import android.view.accessibility.AccessibilityEvent
 
 class AirTouchAccessibilityService : AccessibilityService() {
@@ -22,7 +23,7 @@ class AirTouchAccessibilityService : AccessibilityService() {
     fun tap(x: Float, y: Float) {
         val p = Path().apply { moveTo(x, y) }
         dispatchGesture(GestureDescription.Builder()
-            .addStroke(GestureDescription.StrokeDescription(p, 0, 70)).build(), null, null)
+            .addStroke(GestureDescription.StrokeDescription(p, 0, 75)).build(), null, null)
     }
 
     fun swipe(up: Boolean) {
@@ -37,6 +38,14 @@ class AirTouchAccessibilityService : AccessibilityService() {
     }
 
     fun back() { performGlobalAction(GLOBAL_ACTION_BACK) }
+
+    // Android 9+ supports locking the device through an accessibility global action.
+    fun lockScreen(): Boolean =
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.P &&
+            performGlobalAction(GLOBAL_ACTION_LOCK_SCREEN)
+
+    // HOME moves the currently open app to the background (minimizes it).
+    fun minimizeApp(): Boolean = performGlobalAction(GLOBAL_ACTION_HOME)
 
     companion object {
         @Volatile var instance: AirTouchAccessibilityService? = null
