@@ -5,10 +5,10 @@ Native Android hands-free phone control using the front camera, MediaPipe Hand L
 ## Smart gesture controls
 
 - **Live finger trail:** a floating, fading cursor follows the index fingertip over other apps.
-- **Pinch to tap:** bring thumb and index finger together. The pinch must remain stable across multiple camera frames; the threshold is scaled to palm width to reduce sensitivity to camera distance and hand size.
+- **Pinch to tap:** bring thumb and index finger together. The click target is the midpoint between the two fingertips, not the index fingertip. A stable pinch is treated as one click only until the fingers separate; the threshold is scaled to palm width.
 - **Index-only scroll:** keep the index finger raised and the other three fingers folded, then move the fingertip up or down. The app ignores sideways drift and small movements.
-- **Open palm pause:** an open hand pauses gesture actions.
-- **Noise rejection:** smoothed coordinates, stable-frame checks, cooldowns, gesture release hysteresis, and a one-hand-only detector reduce accidental actions.
+- **Open palm pause:** the open-palm pose must remain visible for five frames before gesture actions pause, preventing one noisy frame from interrupting control.
+- **Noise rejection:** smoothed coordinates, four-frame gesture confirmation, five-frame pause confirmation, cooldowns, gesture release hysteresis, and a one-hand-only detector reduce accidental actions.
 - **Background camera service:** a foreground notification indicates that camera tracking is active and provides a Stop action.
 
 ## Permissions and first use
