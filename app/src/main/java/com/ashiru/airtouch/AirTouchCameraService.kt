@@ -8,6 +8,9 @@ import android.graphics.Bitmap
 import android.graphics.Matrix
 import android.graphics.PixelFormat
 import android.graphics.Color
+import android.graphics.Canvas
+import android.graphics.Paint
+import android.view.View
 import android.graphics.drawable.GradientDrawable
 import android.os.Build
 import android.content.Intent
@@ -29,16 +32,53 @@ import java.util.concurrent.Executors
 import kotlin.math.abs
 import kotlin.math.hypot
 
+private class FingerTrailView(context: android.content.Context) : View(context) {
+    private val lock = Any()
+    private val points = mutableListOf<Pair<Float, Float>>()
+    private val linePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.rgb(0, 255, 210); style = Paint.Style.STROKE; strokeWidth = 7f
+        strokeCap = Paint.Cap.ROUND; strokeJoin = Paint.Join.ROUND
+    }
+    private val ringPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.rgb(0, 255, 210); style = Paint.Style.STROKE; strokeWidth = 5f
+    }
+    private val fillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.argb(75, 0, 255, 210); style = Paint.Style.FILL
+    }
+    fun updateFinger(x: Float, y: Float) {
+        synchronized(lock) {
+            points.add(x to y)
+            while (points.size > 22) points.removeAt(0)
+        }
+        postInvalidate()
+    }
+    override fun onDraw(canvas: Canvas) {
+        super.onDraw(canvas)
+        val copy = synchronized(lock) { points.toList() }
+        if (copy.isEmpty()) return
+        if (copy.size > 1) {
+            val path = android.graphics.Path().apply {
+                moveTo(copy.first().first, copy.first().second)
+                copy.drop(1).forEach { lineTo(it.first, it.second) }
+            }
+            canvas.drawPath(path, linePaint)
+        }
+        val (x, y) = copy.last()
+        canvas.drawCircle(x, y, 25f, fillPaint)
+        canvas.drawCircle(x, y, 25f, ringPaint)
+        canvas.drawCircle(x, y, 7f, fillPaint)
+    }
+}
+
 class AirTouchCameraService : LifecycleService() {
     private var cameraProvider: ProcessCameraProvider? = null
     private var landmarker: HandLandmarker? = null
     private lateinit var executor: ExecutorService
-    private var overlay: TextView? = null
+    private var overlay: FingerTrailView? = null
     private var windowManager: WindowManager? = null
     private var overlayParams: WindowManager.LayoutParams? = null
     @Volatile private var anchorY: Float? = null
     @Volatile private var wasPinching = false
-    @Volatile private var wasFist = false
     @Volatile private var lastGestureAt = 0L
 
     override fun onCreate() {
@@ -88,7 +128,7 @@ class AirTouchCameraService : LifecycleService() {
             if (rotated !== src) src.recycle()
             val hands = landmarker?.detect(BitmapImageBuilder(rotated).build())?.landmarks()
             if (hands.isNullOrEmpty()) {
-                anchorY = null; wasPinching = false; wasFist = false
+                anchorY = null; wasPinching = false
                 return
             }
             val hand = hands[0]
@@ -97,53 +137,44 @@ class AirTouchCameraService : LifecycleService() {
             moveFloatingCursor(x, y)
             val pinch = hypot((hand[4].x()-hand[8].x()).toDouble(),
                 (hand[4].y()-hand[8].y()).toDouble()) < 0.055
-            val fist = listOf(8 to 6, 12 to 10, 16 to 14, 20 to 18)
-                .all { (tip,pip) -> hand[tip].y() > hand[pip].y() }
             val openPalm = listOf(8 to 6, 12 to 10, 16 to 14, 20 to 18)
                 .all { (tip,pip) -> hand[tip].y() < hand[pip].y() }
+            // One-finger mode: index extended, remaining three fingers folded.
+            val indexOnly = hand[8].y() < hand[6].y() &&
+                listOf(12 to 10, 16 to 14, 20 to 18)
+                    .all { (tip,pip) -> hand[tip].y() > hand[pip].y() }
+
             val now = System.currentTimeMillis()
             val control = AirTouchAccessibilityService.instance
 
-            // Releasing a fist while the camera is still active sends HOME (minimize).
-            if (wasFist && openPalm) {
-                control?.minimizeApp()
-                wasFist = false
-                wasPinching = false
-                anchorY = y
-                lastGestureAt = now
-                return
-            }
-
-            // Lock screen on a newly detected fist. The OS may stop camera frames
-            // after display-off, so release-to-minimize depends on camera availability.
-            if (fist && !wasFist && now-lastGestureAt > 1000 && control != null) {
-                wasFist = true
-                wasPinching = false
-                anchorY = y
-                control.lockScreen()
-                lastGestureAt = now
-                return
-            }
-
+            // Open palm pauses gestures; it never locks the screen.
             if (openPalm) {
                 anchorY = y
                 wasPinching = false
                 return
             }
 
-            // Click only on the transition into a deliberate thumb-index pinch.
-            if (pinch && !wasPinching && now-lastGestureAt > 700 && control != null) {
+            // Pinch thumb + index to click exactly where the tracking marker sits.
+            if (pinch && !wasPinching && now-lastGestureAt > 650 && control != null) {
                 val dm = resources.displayMetrics
-                control.tap(x*dm.widthPixels, y*dm.heightPixels)
+                control.tap(x * dm.widthPixels, y * dm.heightPixels)
                 lastGestureAt = now
             }
+
+            // With only the index finger raised, move vertically to scroll at
+            // that finger's horizontal position. Re-arm after each scroll.
             val base = anchorY
-            if (!pinch && !fist && base != null && abs(y-base) > 0.20f &&
-                now-lastGestureAt > 900 && control != null) {
-                control.swipe(y < base); lastGestureAt = now; anchorY = y
-            } else if (base == null) anchorY = y
+            if (indexOnly && !pinch && base != null && abs(y-base) > 0.10f &&
+                now-lastGestureAt > 650 && control != null) {
+                val dm = resources.displayMetrics
+                control.swipeAt(x * dm.widthPixels, y * dm.heightPixels, y < base)
+                lastGestureAt = now
+                anchorY = y
+            } else if (base == null || (!indexOnly && !pinch)) {
+                anchorY = y
+            }
+
             wasPinching = pinch
-            if (!fist) wasFist = false
         } catch (_: Exception) {
         } finally {
             rotated?.recycle()
@@ -155,18 +186,11 @@ class AirTouchCameraService : LifecycleService() {
         if (!android.provider.Settings.canDrawOverlays(this) || overlay != null) return
         try {
             windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
-            val dot = TextView(this).apply {
-                text = "◎"; textSize = 38f; setTextColor(Color.rgb(0,255,210))
-                background = GradientDrawable().apply {
-                    shape = GradientDrawable.OVAL
-                    setColor(Color.argb(55,0,255,210)); setStroke(3,Color.rgb(0,255,210))
-                }
-                gravity = Gravity.CENTER
-            }
+            val dot = FingerTrailView(this)
             val type = if (Build.VERSION.SDK_INT >= 26)
                 WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
             else @Suppress("DEPRECATION") WindowManager.LayoutParams.TYPE_PHONE
-            val params = WindowManager.LayoutParams(48,48,type,
+            val params = WindowManager.LayoutParams(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.MATCH_PARENT,type,
                 WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
                 WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
                 WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
@@ -179,9 +203,7 @@ class AirTouchCameraService : LifecycleService() {
         val dot=overlay ?: return
         val p=overlayParams ?: return
         val dm=resources.displayMetrics
-        p.x=(x*dm.widthPixels-24).toInt().coerceAtLeast(0)
-        p.y=(y*dm.heightPixels-24).toInt().coerceAtLeast(0)
-        try { windowManager?.updateViewLayout(dot,p) } catch (_: Exception) { }
+        dot.updateFinger(x * dm.widthPixels, y * dm.heightPixels)
     }
 
     private fun buildNotification(): Notification {
@@ -193,7 +215,7 @@ class AirTouchCameraService : LifecycleService() {
         return NotificationCompat.Builder(this,CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_menu_camera)
             .setContentTitle("ASHIRU AIR TOUCH is running")
-            .setContentText("Finger tracking active • Pinch to tap • Fist to lock")
+            .setContentText("Finger trail active • Index finger to scroll • Pinch to tap")
             .setContentIntent(open).setOngoing(true)
             .addAction(android.R.drawable.ic_media_pause,"Stop",stop).build()
     }
