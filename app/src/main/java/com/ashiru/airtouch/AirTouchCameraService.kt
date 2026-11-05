@@ -206,8 +206,12 @@ class AirTouchCameraService : LifecycleService() {
             }
 
             val hand = hands[0]
-            val rawX = (1f - hand[8].x()).coerceIn(0f, 1f)
-            val rawY = hand[8].y().coerceIn(0f, 1f)
+            // The cursor is controlled by the midpoint of thumb tip (4)
+            // and index tip (8), so both fingers contribute to pointer motion.
+            val pairMidX = (hand[4].x() + hand[8].x()) * 0.5f
+            val pairMidY = (hand[4].y() + hand[8].y()) * 0.5f
+            val rawX = (1f - pairMidX).coerceIn(0f, 1f)
+            val rawY = pairMidY.coerceIn(0f, 1f)
             val x = smoothX?.let { it + (rawX - it) * SMOOTHING } ?: rawX
             val y = smoothY?.let { it + (rawY - it) * SMOOTHING } ?: rawY
             smoothX = x
@@ -216,19 +220,13 @@ class AirTouchCameraService : LifecycleService() {
             val dm = resources.displayMetrics
             val screenX = x * dm.widthPixels
             val screenY = y * dm.heightPixels
-            // A pinch click belongs at the meeting point of thumb and index,
-            // while the visible cursor continues to follow the index fingertip.
-            val pinchMidX = (hand[4].x() + hand[8].x()) * 0.5f
-            val pinchMidY = (hand[4].y() + hand[8].y()) * 0.5f
-            val tapX = ((1f - pinchMidX) * dm.widthPixels).coerceIn(1f, dm.widthPixels - 1f)
-            val tapY = (pinchMidY * dm.heightPixels).coerceIn(1f, dm.heightPixels - 1f)
+            // Click at the same two-finger midpoint used by the floating cursor.
+            val tapX = screenX.coerceIn(1f, dm.widthPixels - 1f)
+            val tapY = screenY.coerceIn(1f, dm.heightPixels - 1f)
             overlay?.updateFinger(screenX, screenY)
 
             val folded = listOf(12 to 10, 16 to 14, 20 to 18)
                 .all { (tip, pip) -> hand[tip].y() > hand[pip].y() }
-            val indexExtended = hand[8].y() < hand[6].y()
-            val indexOnly = indexExtended && folded
-
             val thumbIndexDistance = hypot(
                 (hand[4].x() - hand[8].x()).toDouble(),
                 (hand[4].y() - hand[8].y()).toDouble()
@@ -241,6 +239,9 @@ class AirTouchCameraService : LifecycleService() {
             )
             val pinchRatio = if (palmWidth > 0.025) thumbIndexDistance / palmWidth else 99.0
             val pinch = pinchRatio < PINCH_START_RATIO && folded
+            // Thumb + index held apart is the two-finger mouse/scroll pose.
+            // Pinching those same fingers is reserved for a click.
+            val twoFingerPose = folded && pinchRatio > PINCH_RELEASE_RATIO
             val openPalm = listOf(8 to 6, 12 to 10, 16 to 14, 20 to 18)
                 .all { (tip, pip) -> hand[tip].y() < hand[pip].y() }
 
@@ -279,8 +280,9 @@ class AirTouchCameraService : LifecycleService() {
                 wasPinching = false
             }
 
-            // Scroll is enabled only in the deliberate "index finger alone" pose.
-            if (indexOnly) {
+            // Vertical hand movement while the thumb/index pair is apart
+            // scrolls the currently foreground app (TikTok, browser, dashboard, etc.).
+            if (twoFingerPose) {
                 indexOnlyFrames++
                 if (indexOnlyFrames == REQUIRED_STABLE_FRAMES) {
                     scrollAnchorX = x
@@ -378,7 +380,7 @@ class AirTouchCameraService : LifecycleService() {
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_menu_camera)
             .setContentTitle("ASHIRU AIR TOUCH is running")
-            .setContentText("Smart tracking • Stable pinch to tap • Index finger to scroll")
+            .setContentText("Two-finger cursor • Pinch to click • Move hand up/down to scroll")
             .setContentIntent(open)
             .setOngoing(true)
             .addAction(android.R.drawable.ic_media_pause, "Stop", stop)
