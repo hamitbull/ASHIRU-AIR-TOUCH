@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">ASHIRU AIR TOUCH</string>
+    <string name="accessibility_description">Allows hand gestures to tap, swipe and go back when you enable this service.</string>
+</resources>
