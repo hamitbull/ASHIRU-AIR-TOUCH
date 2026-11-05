@@ -1,10 +1,12 @@
 package com.ashiru.airtouch
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.Matrix
 import android.os.Bundle
+import android.provider.Settings
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.camera.core.CameraSelector
@@ -20,18 +22,23 @@ import com.google.mediapipe.tasks.vision.core.RunningMode
 import com.google.mediapipe.tasks.vision.handlandmarker.HandLandmarker
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
+import kotlin.math.hypot
 
 class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
     private var cameraProvider: ProcessCameraProvider? = null
     private var handLandmarker: HandLandmarker? = null
     private lateinit var cameraExecutor: ExecutorService
+    @Volatile private var previousIndexY: Float? = null
+    @Volatile private var previousPinch = false
+    @Volatile private var previousFist = false
+    @Volatile private var lastActionAt = 0L
 
     private val permissionRequest = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { granted ->
         if (granted) startCamera()
-        else binding.status.text = "Camera permission denied. Allow it in Android Settings."
+        else binding.status.text = "An bukaci izinin Camera domin app din ya gane hannu."
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -40,8 +47,20 @@ class MainActivity : AppCompatActivity() {
         setContentView(binding.root)
         cameraExecutor = Executors.newSingleThreadExecutor()
         binding.startButton.setOnClickListener { requestCameraAndStart() }
+        binding.accessibilityButton.setOnClickListener {
+            startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+        }
         initializeHandTracking()
         requestCameraAndStart()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (::binding.isInitialized) {
+            binding.accessibilityButton.text =
+                if (AirTouchAccessibilityService.instance != null) "ACCESSIBILITY: ON"
+                else "ENABLE PHONE CONTROL"
+        }
     }
 
     private fun initializeHandTracking() {
@@ -57,7 +76,7 @@ class MainActivity : AppCompatActivity() {
                 .build()
             handLandmarker = HandLandmarker.createFromOptions(this, options)
         } catch (e: Exception) {
-            binding.status.text = "Hand model unavailable: ${e.localizedMessage ?: "check app assets"}"
+            binding.status.text = "Hand model bai samu ba: ${e.localizedMessage ?: "duba build"}"
         }
     }
 
@@ -69,10 +88,10 @@ class MainActivity : AppCompatActivity() {
 
     private fun startCamera() {
         if (handLandmarker == null) {
-            binding.status.text = "Hand model is not ready. Install the latest build."
+            binding.status.text = "Hand model bai shirya ba. Sake sauke sabon APK."
             return
         }
-        binding.status.text = "Starting camera and hand tracking…"
+        binding.status.text = "Ana bude camera..."
         val future = ProcessCameraProvider.getInstance(this)
         future.addListener({
             try {
@@ -88,10 +107,10 @@ class MainActivity : AppCompatActivity() {
                 cameraProvider?.bindToLifecycle(
                     this, CameraSelector.DEFAULT_FRONT_CAMERA, preview, analysis
                 )
-                binding.status.text = "Show one hand to the camera."
+                binding.status.text = "Nuna tafin hannunka ga camera."
                 binding.startButton.text = "AIR TOUCH RUNNING"
             } catch (e: Exception) {
-                binding.status.text = "Camera error: ${e.localizedMessage ?: "Unable to start"}"
+                binding.status.text = "Camera error: ${e.localizedMessage ?: "ba a iya budewa ba"}"
             }
         }, ContextCompat.getMainExecutor(this))
     }
@@ -105,21 +124,65 @@ class MainActivity : AppCompatActivity() {
             }
             rotated = Bitmap.createBitmap(source, 0, 0, source.width, source.height, matrix, true)
             if (rotated !== source) source.recycle()
-            val mpImage = BitmapImageBuilder(rotated).build()
-            val result = handLandmarker?.detect(mpImage)
-            val landmarks = result?.landmarks()
-            if (!landmarks.isNullOrEmpty()) {
-                val indexTip = landmarks[0][8]
-                val x = 1f - indexTip.x() // Mirror X for the front-camera preview.
-                val y = indexTip.y()
-                runOnUiThread {
-                    binding.handCursor.showCursor(x, y)
-                    binding.status.text = "Hand detected • Index finger cursor active"
-                }
-            } else {
+            val result = handLandmarker?.detect(BitmapImageBuilder(rotated).build())
+            val hands = result?.landmarks()
+            if (hands.isNullOrEmpty()) {
+                previousIndexY = null
+                previousPinch = false
+                previousFist = false
                 runOnUiThread {
                     binding.handCursor.hideCursor()
-                    binding.status.text = "No hand detected • Show your palm to the camera"
+                    binding.status.text = "Ba a ga hannu ba. Nuna hannunka a fili."
+                }
+            } else {
+                val hand = hands[0]
+                val index = hand[8]
+                val x = (1f - index.x()).coerceIn(0f, 1f)
+                val y = index.y().coerceIn(0f, 1f)
+                val pinch = hypot(
+                    (hand[4].x() - hand[8].x()).toDouble(),
+                    (hand[4].y() - hand[8].y()).toDouble()
+                ) < 0.055
+                val fist = listOf(8 to 6, 12 to 10, 16 to 14, 20 to 18)
+                    .all { (tip, pip) -> hand[tip].y() > hand[pip].y() }
+                val openPalm = listOf(8 to 6, 12 to 10, 16 to 14, 20 to 18)
+                    .all { (tip, pip) -> hand[tip].y() < hand[pip].y() }
+
+                if (!openPalm && !pinch && !fist) {
+                    val oldY = previousIndexY
+                    if (oldY != null && kotlin.math.abs(y - oldY) > 0.18f && canTrigger()) {
+                        AirTouchAccessibilityService.instance?.swipe(y < oldY)
+                        lastActionAt = System.currentTimeMillis()
+                    }
+                }
+                if (pinch && !previousPinch && canTrigger()) {
+                    val svc = AirTouchAccessibilityService.instance
+                    if (svc != null) {
+                        val dm = resources.displayMetrics
+                        svc.tap(x * dm.widthPixels, y * dm.heightPixels)
+                        lastActionAt = System.currentTimeMillis()
+                    }
+                }
+                if (fist && !previousFist && canTrigger()) {
+                    AirTouchAccessibilityService.instance?.back()
+                    lastActionAt = System.currentTimeMillis()
+                }
+
+                previousIndexY = y
+                previousPinch = pinch
+                previousFist = fist
+                runOnUiThread {
+                    binding.handCursor.showCursor(x, y)
+                    val serviceOn = AirTouchAccessibilityService.instance != null
+                    binding.accessibilityButton.text =
+                        if (serviceOn) "ACCESSIBILITY: ON" else "ENABLE PHONE CONTROL"
+                    binding.status.text = when {
+                        openPalm -> "AIR PAUSE • Hannu a bude: an dakatar da gesture"
+                        pinch -> "AIR CLICK • pinch"
+                        fist -> "AIR BACK • dunkule hannu"
+                        else -> if (serviceOn) "Air control yana aiki • motsa hannu sama/ƙasa"
+                               else "Cursor yana aiki a nan • kunna Phone Control domin sauran apps"
+                    }
                 }
             }
         } catch (_: Exception) {
@@ -129,6 +192,8 @@ class MainActivity : AppCompatActivity() {
             imageProxy.close()
         }
     }
+
+    private fun canTrigger(): Boolean = System.currentTimeMillis() - lastActionAt > 850
 
     override fun onDestroy() {
         cameraProvider?.unbindAll()
