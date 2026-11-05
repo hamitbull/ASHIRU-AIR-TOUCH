@@ -116,6 +116,7 @@ class AirTouchCameraService : LifecycleService() {
     private var scrollAnchorY: Float? = null
     private var indexOnlyFrames = 0
     private var pinchFrames = 0
+    private var openPalmFrames = 0
     private var wasPinching = false
     private var lastGestureAt = 0L
     private var lastVideoTimestamp = 0L
@@ -215,6 +216,12 @@ class AirTouchCameraService : LifecycleService() {
             val dm = resources.displayMetrics
             val screenX = x * dm.widthPixels
             val screenY = y * dm.heightPixels
+            // A pinch click belongs at the meeting point of thumb and index,
+            // while the visible cursor continues to follow the index fingertip.
+            val pinchMidX = (hand[4].x() + hand[8].x()) * 0.5f
+            val pinchMidY = (hand[4].y() + hand[8].y()) * 0.5f
+            val tapX = ((1f - pinchMidX) * dm.widthPixels).coerceIn(1f, dm.widthPixels - 1f)
+            val tapY = (pinchMidY * dm.heightPixels).coerceIn(1f, dm.heightPixels - 1f)
             overlay?.updateFinger(screenX, screenY)
 
             val folded = listOf(12 to 10, 16 to 14, 20 to 18)
@@ -240,27 +247,34 @@ class AirTouchCameraService : LifecycleService() {
             val now = SystemClock.uptimeMillis()
             val control = AirTouchAccessibilityService.instance
 
-            // An open palm is an explicit pause. Unknown/noisy poses do nothing.
+            // Require a deliberate, sustained open palm before pausing.
+            // A single noisy frame must not interrupt the user's control.
             if (openPalm) {
-                resetGestureState()
+                openPalmFrames++
+                if (openPalmFrames >= OPEN_PALM_STABLE_FRAMES) {
+                    resetGestureState()
+                }
                 return
+            } else {
+                openPalmFrames = 0
             }
 
-            // Pinch must be stable for several frames and is fired once per pinch.
+            // A pinch is one click only. Latch as soon as the pose is stable,
+            // even if Accessibility is briefly unavailable or cooldown is active.
             if (pinch) {
                 pinchFrames++
                 indexOnlyFrames = 0
                 scrollAnchorX = null
                 scrollAnchorY = null
-                if (pinchFrames >= REQUIRED_STABLE_FRAMES &&
-                    !wasPinching && now - lastGestureAt >= CLICK_COOLDOWN && control != null
-                ) {
-                    control.tap(screenX, screenY)
-                    lastGestureAt = now
+                if (pinchFrames >= REQUIRED_STABLE_FRAMES && !wasPinching) {
                     wasPinching = true
+                    if (now - lastGestureAt >= CLICK_COOLDOWN && control != null) {
+                        control.tap(tapX, tapY)
+                        lastGestureAt = now
+                    }
                 }
                 return
-            } else if (pinchRatio > PINCH_RELEASE_RATIO) {
+            } else if (pinchRatio > PINCH_RELEASE_RATIO || !folded) {
                 pinchFrames = 0
                 wasPinching = false
             }
@@ -304,6 +318,7 @@ class AirTouchCameraService : LifecycleService() {
         scrollAnchorY = null
         indexOnlyFrames = 0
         pinchFrames = 0
+        openPalmFrames = 0
         wasPinching = false
     }
 
@@ -314,6 +329,7 @@ class AirTouchCameraService : LifecycleService() {
         scrollAnchorY = null
         indexOnlyFrames = 0
         pinchFrames = 0
+        openPalmFrames = 0
         // Keep the pinch latch until a real release/open-palm pose is seen.
         // A momentary tracking dropout must never create a second accidental tap.
     }
@@ -399,7 +415,8 @@ class AirTouchCameraService : LifecycleService() {
         private const val SMOOTHING = 0.35f
         private const val PINCH_START_RATIO = 0.34
         private const val PINCH_RELEASE_RATIO = 0.56
-        private const val REQUIRED_STABLE_FRAMES = 3
+        private const val REQUIRED_STABLE_FRAMES = 4
+        private const val OPEN_PALM_STABLE_FRAMES = 5
         private const val CLICK_COOLDOWN = 750L
         private const val SCROLL_THRESHOLD = 0.13f
         private const val MAX_SCROLL_SIDE_DRIFT = 0.14f
