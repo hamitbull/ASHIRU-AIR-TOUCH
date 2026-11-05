@@ -3,6 +3,10 @@
     <uses-feature android:name="android.hardware.camera.front" android:required="false" />
     <uses-feature android:name="android.hardware.camera" android:required="true" />
     <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CAMERA" />
     <application android:allowBackup="false" android:label="ASHIRU AIR TOUCH"
         android:theme="@style/Theme.AshiruAirTouch" android:usesCleartextTraffic="false">
         <activity android:name=".MainActivity" android:exported="true">
@@ -11,16 +15,14 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <service
-            android:name=".AirTouchAccessibilityService"
-            android:label="ASHIRU AIR TOUCH"
-            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
-            android:exported="true">
+        <service android:name=".AirTouchCameraService" android:exported="false"
+            android:foregroundServiceType="camera" />
+        <service android:name=".AirTouchAccessibilityService" android:label="ASHIRU AIR TOUCH"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE" android:exported="true">
             <intent-filter>
                 <action android:name="android.accessibilityservice.AccessibilityService" />
             </intent-filter>
-            <meta-data
-                android:name="android.accessibilityservice"
+            <meta-data android:name="android.accessibilityservice"
                 android:resource="@xml/air_touch_accessibility_service" />
         </service>
     </application>
