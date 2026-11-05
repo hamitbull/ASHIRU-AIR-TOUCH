@@ -99,7 +99,7 @@ class MainActivity : AppCompatActivity() {
         ContextCompat.startForegroundService(
             this, Intent(this, AirTouchCameraService::class.java)
         )
-        binding.status.text = "AIR TOUCH yana aiki. Yatsa daya = scroll; babban yatsa + manuni = click. Layin haske yana nuna tracking."
+        binding.status.text = "AIR TOUCH yana aiki. Yatsa daya = scroll; pinch = click a tsakiyar yatsun. Ana tabbatar da gesture kafin aiki."
         binding.startButton.text = "AIR TOUCH RUNNING"
     }
 
