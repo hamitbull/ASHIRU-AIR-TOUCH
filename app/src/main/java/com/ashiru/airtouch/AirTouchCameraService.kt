@@ -101,24 +101,49 @@ class AirTouchCameraService : LifecycleService() {
                 .all { (tip,pip) -> hand[tip].y() > hand[pip].y() }
             val openPalm = listOf(8 to 6, 12 to 10, 16 to 14, 20 to 18)
                 .all { (tip,pip) -> hand[tip].y() < hand[pip].y() }
-            if (openPalm) { anchorY = y; return }
-
             val now = System.currentTimeMillis()
             val control = AirTouchAccessibilityService.instance
-            if (pinch && !wasPinching && now-lastGestureAt > 850 && control != null) {
+
+            // Releasing a fist while the camera is still active sends HOME (minimize).
+            if (wasFist && openPalm) {
+                control?.minimizeApp()
+                wasFist = false
+                wasPinching = false
+                anchorY = y
+                lastGestureAt = now
+                return
+            }
+
+            // Lock screen on a newly detected fist. The OS may stop camera frames
+            // after display-off, so release-to-minimize depends on camera availability.
+            if (fist && !wasFist && now-lastGestureAt > 1000 && control != null) {
+                wasFist = true
+                wasPinching = false
+                anchorY = y
+                control.lockScreen()
+                lastGestureAt = now
+                return
+            }
+
+            if (openPalm) {
+                anchorY = y
+                wasPinching = false
+                return
+            }
+
+            // Click only on the transition into a deliberate thumb-index pinch.
+            if (pinch && !wasPinching && now-lastGestureAt > 700 && control != null) {
                 val dm = resources.displayMetrics
                 control.tap(x*dm.widthPixels, y*dm.heightPixels)
                 lastGestureAt = now
-            }
-            if (fist && !wasFist && now-lastGestureAt > 850 && control != null) {
-                control.back(); lastGestureAt = now
             }
             val base = anchorY
             if (!pinch && !fist && base != null && abs(y-base) > 0.20f &&
                 now-lastGestureAt > 900 && control != null) {
                 control.swipe(y < base); lastGestureAt = now; anchorY = y
             } else if (base == null) anchorY = y
-            wasPinching = pinch; wasFist = fist
+            wasPinching = pinch
+            if (!fist) wasFist = false
         } catch (_: Exception) {
         } finally {
             rotated?.recycle()
@@ -131,10 +156,10 @@ class AirTouchCameraService : LifecycleService() {
         try {
             windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
             val dot = TextView(this).apply {
-                text = "●"; textSize = 30f; setTextColor(Color.rgb(0,220,190))
+                text = "◎"; textSize = 38f; setTextColor(Color.rgb(0,255,210))
                 background = GradientDrawable().apply {
                     shape = GradientDrawable.OVAL
-                    setColor(Color.argb(35,0,220,190)); setStroke(2,Color.rgb(0,220,190))
+                    setColor(Color.argb(55,0,255,210)); setStroke(3,Color.rgb(0,255,210))
                 }
                 gravity = Gravity.CENTER
             }
@@ -168,7 +193,7 @@ class AirTouchCameraService : LifecycleService() {
         return NotificationCompat.Builder(this,CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_menu_camera)
             .setContentTitle("ASHIRU AIR TOUCH is running")
-            .setContentText("Hand gesture control is active")
+            .setContentText("Finger tracking active • Pinch to tap • Fist to lock")
             .setContentIntent(open).setOngoing(true)
             .addAction(android.R.drawable.ic_media_pause,"Stop",stop).build()
     }
