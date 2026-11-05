@@ -226,7 +226,14 @@ class AirTouchCameraService : LifecycleService() {
                 (hand[4].x() - hand[8].x()).toDouble(),
                 (hand[4].y() - hand[8].y()).toDouble()
             )
-            val pinch = thumbIndexDistance < PINCH_START && folded
+            // Scale pinch distance by palm width, so the gesture works at
+            // different camera distances and with different hand sizes.
+            val palmWidth = hypot(
+                (hand[5].x() - hand[17].x()).toDouble(),
+                (hand[5].y() - hand[17].y()).toDouble()
+            )
+            val pinchRatio = if (palmWidth > 0.025) thumbIndexDistance / palmWidth else 99.0
+            val pinch = pinchRatio < PINCH_START_RATIO && folded
             val openPalm = listOf(8 to 6, 12 to 10, 16 to 14, 20 to 18)
                 .all { (tip, pip) -> hand[tip].y() < hand[pip].y() }
 
@@ -253,7 +260,7 @@ class AirTouchCameraService : LifecycleService() {
                     wasPinching = true
                 }
                 return
-            } else if (thumbIndexDistance > PINCH_RELEASE) {
+            } else if (pinchRatio > PINCH_RELEASE_RATIO) {
                 pinchFrames = 0
                 wasPinching = false
             }
@@ -303,7 +310,12 @@ class AirTouchCameraService : LifecycleService() {
     private fun resetTracking() {
         smoothX = null
         smoothY = null
-        resetGestureState()
+        scrollAnchorX = null
+        scrollAnchorY = null
+        indexOnlyFrames = 0
+        pinchFrames = 0
+        // Keep the pinch latch until a real release/open-palm pose is seen.
+        // A momentary tracking dropout must never create a second accidental tap.
     }
 
     private fun showFloatingCursor() {
@@ -327,6 +339,8 @@ class AirTouchCameraService : LifecycleService() {
                 PixelFormat.TRANSLUCENT
             ).apply {
                 gravity = Gravity.TOP or Gravity.START
+                // Keep the full-screen visual overlay transparent enough for Android 12+ touch-through.
+                alpha = 0.70f
             }
             windowManager?.addView(trail, params)
             overlay = trail
@@ -383,8 +397,8 @@ class AirTouchCameraService : LifecycleService() {
         private const val CHANNEL_ID = "air_touch_camera"
         private const val NOTIFICATION_ID = 411
         private const val SMOOTHING = 0.35f
-        private const val PINCH_START = 0.045
-        private const val PINCH_RELEASE = 0.075
+        private const val PINCH_START_RATIO = 0.34
+        private const val PINCH_RELEASE_RATIO = 0.56
         private const val REQUIRED_STABLE_FRAMES = 3
         private const val CLICK_COOLDOWN = 750L
         private const val SCROLL_THRESHOLD = 0.13f
