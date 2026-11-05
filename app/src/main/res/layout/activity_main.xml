@@ -8,29 +8,24 @@
         android:textStyle="bold" app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintStart_toStartOf="parent" app:layout_constraintEnd_toEndOf="parent"/>
     <TextView android:id="@+id/subtitle" android:layout_width="0dp" android:layout_height="wrap_content"
-        android:text="Control your phone with hand gestures"
-        android:textColor="#B8B9C5" android:textSize="14sp"
+        android:text="Control your phone with hand gestures" android:textColor="#B8B9C5" android:textSize="14sp"
         app:layout_constraintTop_toBottomOf="@id/title" app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" android:layout_marginTop="6dp"/>
-    <FrameLayout android:id="@+id/cameraFrame" android:layout_width="0dp" android:layout_height="0dp"
-        android:background="#202633"
-        app:layout_constraintTop_toBottomOf="@id/subtitle" app:layout_constraintBottom_toTopOf="@id/status"
+    <TextView android:id="@+id/status" android:layout_width="0dp" android:layout_height="0dp"
+        android:text="Grant Camera, Display over other apps and Accessibility permissions, then start."
+        android:textColor="#FFFFFF" android:textSize="16sp" android:gravity="center"
+        app:layout_constraintTop_toBottomOf="@id/subtitle" app:layout_constraintBottom_toTopOf="@id/overlayButton"
         app:layout_constraintStart_toStartOf="parent" app:layout_constraintEnd_toEndOf="parent"
-        android:layout_marginTop="20dp" android:layout_marginBottom="12dp">
-        <androidx.camera.view.PreviewView android:id="@+id/cameraPreview"
-            android:layout_width="match_parent" android:layout_height="match_parent"
-            app:implementationMode="compatible"/>
-        <com.ashiru.airtouch.HandCursorView android:id="@+id/handCursor"
-            android:layout_width="match_parent" android:layout_height="match_parent"/>
-    </FrameLayout>
-    <TextView android:id="@+id/status" android:layout_width="0dp" android:layout_height="wrap_content"
-        android:text="Camera permission is required." android:textColor="#FFFFFF" android:textSize="14sp"
-        app:layout_constraintBottom_toTopOf="@id/accessibilityButton" app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" android:layout_marginBottom="8dp"/>
+        android:layout_marginTop="20dp" android:layout_marginBottom="12dp"/>
+    <com.google.android.material.button.MaterialButton android:id="@+id/overlayButton"
+        android:layout_width="0dp" android:layout_height="wrap_content"
+        android:text="ENABLE FLOATING CURSOR" android:textAllCaps="false" app:cornerRadius="12dp"
+        app:layout_constraintBottom_toTopOf="@id/accessibilityButton"
+        app:layout_constraintStart_toStartOf="parent" app:layout_constraintEnd_toEndOf="parent"
+        android:layout_marginBottom="6dp"/>
     <com.google.android.material.button.MaterialButton android:id="@+id/accessibilityButton"
         android:layout_width="0dp" android:layout_height="wrap_content"
-        android:text="ENABLE PHONE CONTROL" android:textAllCaps="false"
-        app:cornerRadius="12dp"
+        android:text="ENABLE PHONE CONTROL" android:textAllCaps="false" app:cornerRadius="12dp"
         app:layout_constraintBottom_toTopOf="@id/startButton"
         app:layout_constraintStart_toStartOf="parent" app:layout_constraintEnd_toEndOf="parent"
         android:layout_marginBottom="6dp"/>
