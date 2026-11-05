@@ -1,17 +1,19 @@
 # ASHIRU AIR TOUCH
 
-Native Android hand-gesture control project.
+Native Android app for camera-based hand gesture interaction.
 
-## First milestone
-- Kotlin Android application scaffold
-- CameraX front-camera preview
-- Runtime camera permission
+## Implemented
+- Kotlin Android app and CameraX front-camera preview.
+- Runtime camera permission.
+- MediaPipe Hand Landmarker configured to detect one hand.
+- Index-finger tip cursor overlay in the camera preview.
+- GitHub Actions debug APK build.
 
-## Planned milestones
-1. MediaPipe hand landmark tracking and on-screen cursor.
-2. Gesture recognition: pinch, open palm, and vertical swipe.
-3. Optional Accessibility Service for system-wide gestures, enabled explicitly by the user.
-4. Device testing, performance tuning, and release APK.
+## Build
+The workflow downloads the MediaPipe Hand Landmarker model into Android assets, then runs `gradle assembleDebug`. Open the repository's **Actions** tab and download the `ASHIRU-AIR-TOUCH-debug` artifact.
 
-## Important
-The initial camera preview does not yet inject touches or control other apps.
+For a local build, download the model to `app/src/main/assets/hand_landmarker.task` from:
+`https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task`
+
+## Current limitation
+The cursor currently moves inside the camera preview only. It does not yet control other apps or inject screen touches. Next milestone: pinch/open-palm/vertical-swipe gestures and an optional Accessibility Service that the user explicitly enables.
