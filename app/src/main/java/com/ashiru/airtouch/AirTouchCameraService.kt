@@ -263,7 +263,7 @@ class AirTouchCameraService : LifecycleService() {
 
             // Any non-pinching hand pose, including an open palm, can scroll.
             // Moving the hand upward scrolls up; moving it downward scrolls down.
-            if (!pinch) {
+            if (!wasPinching) {
                 scrollFrames++
                 if (scrollFrames == REQUIRED_STABLE_FRAMES) {
                     scrollAnchorX = x
