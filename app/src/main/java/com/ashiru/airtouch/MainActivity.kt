@@ -99,7 +99,7 @@ class MainActivity : AppCompatActivity() {
         ContextCompat.startForegroundService(
             this, Intent(this, AirTouchCameraService::class.java)
         )
-        binding.status.text = "AIR TOUCH yana aiki a kan sauran apps. Babban yatsa da manuni = mouse; haɗa su = click; motsa hannu sama/ƙasa = scroll."
+        binding.status.text = "AIR TOUCH yana aiki a kan sauran apps. Babban yatsa da manuni = mouse; haɗa su = click; buɗe hannu ka motsa sama/ƙasa = scroll."
         binding.startButton.text = "AIR TOUCH RUNNING"
     }
 
