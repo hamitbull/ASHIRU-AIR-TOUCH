@@ -27,8 +27,8 @@ class MainActivity : AppCompatActivity() {
     private val notificationPermission = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { granted ->
-        if (granted) continueSetup()
-        else binding.status.text = "Ka ba app izinin notification domin ganin lokacin da Air Touch yake aiki."
+        if (!granted) binding.status.text = "Ba a ba da izinin notification ba; zan ci gaba, amma sanarwar na iya ɓoyuwa."
+        continueSetup()
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
