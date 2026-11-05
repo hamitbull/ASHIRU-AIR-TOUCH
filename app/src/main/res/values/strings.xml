@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">ASHIRU AIR TOUCH</string>
-    <string name="accessibility_description">Allows hand gestures to tap, swipe and go back when you enable this service.</string>
+    <string name="accessibility_description">ASHIRU AIR TOUCH uses your front camera hand gestures to perform deliberate screen taps and scrolling when you enable this service.</string>
 </resources>
