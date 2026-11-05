@@ -114,9 +114,8 @@ class AirTouchCameraService : LifecycleService() {
     private var smoothY: Float? = null
     private var scrollAnchorX: Float? = null
     private var scrollAnchorY: Float? = null
-    private var indexOnlyFrames = 0
+    private var scrollFrames = 0
     private var pinchFrames = 0
-    private var openPalmFrames = 0
     private var wasPinching = false
     private var lastGestureAt = 0L
     private var lastVideoTimestamp = 0L
@@ -225,8 +224,6 @@ class AirTouchCameraService : LifecycleService() {
             val tapY = screenY.coerceIn(1f, dm.heightPixels - 1f)
             overlay?.updateFinger(screenX, screenY)
 
-            val folded = listOf(12 to 10, 16 to 14, 20 to 18)
-                .all { (tip, pip) -> hand[tip].y() > hand[pip].y() }
             val thumbIndexDistance = hypot(
                 (hand[4].x() - hand[8].x()).toDouble(),
                 (hand[4].y() - hand[8].y()).toDouble()
@@ -238,33 +235,17 @@ class AirTouchCameraService : LifecycleService() {
                 (hand[5].y() - hand[17].y()).toDouble()
             )
             val pinchRatio = if (palmWidth > 0.025) thumbIndexDistance / palmWidth else 99.0
-            val pinch = pinchRatio < PINCH_START_RATIO && folded
-            // Thumb + index held apart is the two-finger mouse/scroll pose.
-            // Pinching those same fingers is reserved for a click.
-            val twoFingerPose = folded && pinchRatio > PINCH_RELEASE_RATIO
-            val openPalm = listOf(8 to 6, 12 to 10, 16 to 14, 20 to 18)
-                .all { (tip, pip) -> hand[tip].y() < hand[pip].y() }
+            // Pinch alone means click; all other visible hand poses can scroll.
+            val pinch = pinchRatio < PINCH_START_RATIO
 
             val now = SystemClock.uptimeMillis()
             val control = AirTouchAccessibilityService.instance
-
-            // Require a deliberate, sustained open palm before pausing.
-            // A single noisy frame must not interrupt the user's control.
-            if (openPalm) {
-                openPalmFrames++
-                if (openPalmFrames >= OPEN_PALM_STABLE_FRAMES) {
-                    resetGestureState()
-                }
-                return
-            } else {
-                openPalmFrames = 0
-            }
 
             // A pinch is one click only. Latch as soon as the pose is stable,
             // even if Accessibility is briefly unavailable or cooldown is active.
             if (pinch) {
                 pinchFrames++
-                indexOnlyFrames = 0
+                scrollFrames = 0
                 scrollAnchorX = null
                 scrollAnchorY = null
                 if (pinchFrames >= REQUIRED_STABLE_FRAMES && !wasPinching) {
@@ -275,22 +256,22 @@ class AirTouchCameraService : LifecycleService() {
                     }
                 }
                 return
-            } else if (pinchRatio > PINCH_RELEASE_RATIO || !folded) {
+            } else if (pinchRatio > PINCH_RELEASE_RATIO) {
                 pinchFrames = 0
                 wasPinching = false
             }
 
-            // Vertical hand movement while the thumb/index pair is apart
-            // scrolls the currently foreground app (TikTok, browser, dashboard, etc.).
-            if (twoFingerPose) {
-                indexOnlyFrames++
-                if (indexOnlyFrames == REQUIRED_STABLE_FRAMES) {
+            // Any non-pinching hand pose, including an open palm, can scroll.
+            // Moving the hand upward scrolls up; moving it downward scrolls down.
+            if (!pinch) {
+                scrollFrames++
+                if (scrollFrames == REQUIRED_STABLE_FRAMES) {
                     scrollAnchorX = x
                     scrollAnchorY = y
                 }
                 val anchorX = scrollAnchorX
                 val anchorY = scrollAnchorY
-                if (indexOnlyFrames >= REQUIRED_STABLE_FRAMES &&
+                if (scrollFrames >= REQUIRED_STABLE_FRAMES &&
                     anchorX != null && anchorY != null &&
                     abs(x - anchorX) < MAX_SCROLL_SIDE_DRIFT &&
                     abs(y - anchorY) >= SCROLL_THRESHOLD &&
@@ -303,7 +284,7 @@ class AirTouchCameraService : LifecycleService() {
                     scrollAnchorY = y
                 }
             } else {
-                indexOnlyFrames = 0
+                scrollFrames = 0
                 scrollAnchorX = null
                 scrollAnchorY = null
             }
@@ -318,9 +299,8 @@ class AirTouchCameraService : LifecycleService() {
     private fun resetGestureState() {
         scrollAnchorX = null
         scrollAnchorY = null
-        indexOnlyFrames = 0
+        scrollFrames = 0
         pinchFrames = 0
-        openPalmFrames = 0
         wasPinching = false
     }
 
@@ -329,9 +309,8 @@ class AirTouchCameraService : LifecycleService() {
         smoothY = null
         scrollAnchorX = null
         scrollAnchorY = null
-        indexOnlyFrames = 0
+        scrollFrames = 0
         pinchFrames = 0
-        openPalmFrames = 0
         // Keep the pinch latch until a real release/open-palm pose is seen.
         // A momentary tracking dropout must never create a second accidental tap.
     }
@@ -380,7 +359,7 @@ class AirTouchCameraService : LifecycleService() {
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_menu_camera)
             .setContentTitle("ASHIRU AIR TOUCH is running")
-            .setContentText("Two-finger cursor • Pinch to click • Move hand up/down to scroll")
+            .setContentText("Air mouse • Pinch to click • Open hand: move up/down to scroll")
             .setContentIntent(open)
             .setOngoing(true)
             .addAction(android.R.drawable.ic_media_pause, "Stop", stop)
@@ -418,7 +397,6 @@ class AirTouchCameraService : LifecycleService() {
         private const val PINCH_START_RATIO = 0.34
         private const val PINCH_RELEASE_RATIO = 0.56
         private const val REQUIRED_STABLE_FRAMES = 4
-        private const val OPEN_PALM_STABLE_FRAMES = 5
         private const val CLICK_COOLDOWN = 750L
         private const val SCROLL_THRESHOLD = 0.13f
         private const val MAX_SCROLL_SIDE_DRIFT = 0.14f
