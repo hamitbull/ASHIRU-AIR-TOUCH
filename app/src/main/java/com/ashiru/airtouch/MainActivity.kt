@@ -111,7 +111,7 @@ class MainActivity : AppCompatActivity() {
         ) ?: return false
         val splitter = TextUtils.SimpleStringSplitter(':')
         splitter.setString(enabled)
-        return splitter.any { it.equals(expected, ignoreCase = true) }
+        return splitter.asSequence().any { it.equals(expected, ignoreCase = true) }
     }
 
     private fun permissionSummary(): String {
