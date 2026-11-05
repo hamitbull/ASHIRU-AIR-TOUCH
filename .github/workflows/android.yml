@@ -17,6 +17,12 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
+      - name: Download MediaPipe hand model
+        run: |
+          mkdir -p app/src/main/assets
+          curl -L --fail --retry 3 \
+            https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task \
+            -o app/src/main/assets/hand_landmarker.task
       - name: Build debug APK
         run: gradle assembleDebug
       - uses: actions/upload-artifact@v4
