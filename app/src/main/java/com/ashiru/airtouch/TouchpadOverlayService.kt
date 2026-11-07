@@ -238,7 +238,7 @@ class TouchpadOverlayService : Service() {
                     } else if (!moved) {
                         val now = SystemClock.uptimeMillis()
                         if (now - lastTapAt in 1..350) {
-                            control?.doubleTap(cursorX, cursorY)
+                            control?.tap(cursorX, cursorY)
                             lastTapAt = 0L
                         } else {
                             control?.tap(cursorX, cursorY)
