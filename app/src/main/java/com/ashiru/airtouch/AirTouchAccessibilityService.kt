@@ -57,6 +57,12 @@ class AirTouchAccessibilityService : AccessibilityService() {
             .build(), null, null)
     }
 
+    /** Swipe the foreground app in the requested content direction. */
+    fun swipeAt(x: Float, y: Float, scrollUp: Boolean) {
+        // scrollAt maps positive delta to an upward finger swipe.
+        scrollAt(x, y, if (scrollUp) 1f else -1f)
+    }
+
     fun back() { performGlobalAction(GLOBAL_ACTION_BACK) }
 
     companion object {
