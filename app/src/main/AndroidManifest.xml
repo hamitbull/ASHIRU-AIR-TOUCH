@@ -7,6 +7,7 @@
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CAMERA" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <application android:allowBackup="false" android:label="ASHIRU AIR TOUCH"
         android:theme="@style/Theme.AshiruAirTouch" android:usesCleartextTraffic="false">
         <activity android:name=".MainActivity" android:exported="true">
@@ -17,6 +18,11 @@
         </activity>
         <service android:name=".AirTouchCameraService" android:exported="false"
             android:foregroundServiceType="camera" />
+        <service android:name=".TouchpadOverlayService" android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Floating touchpad overlay for user input" />
+        </service>
         <service android:name=".AirTouchAccessibilityService" android:label="ASHIRU AIR TOUCH"
             android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE" android:exported="true">
             <intent-filter>
