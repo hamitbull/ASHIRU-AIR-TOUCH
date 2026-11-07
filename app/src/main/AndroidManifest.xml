@@ -17,6 +17,7 @@
         </activity>
         <service android:name=".AirTouchCameraService" android:exported="false"
             android:foregroundServiceType="camera" />
+        <service android:name=".TouchpadOverlayService" android:exported="false" />
         <service android:name=".AirTouchAccessibilityService" android:label="ASHIRU AIR TOUCH"
             android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE" android:exported="true">
             <intent-filter>
