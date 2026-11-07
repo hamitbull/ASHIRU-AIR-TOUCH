@@ -37,6 +37,7 @@ class MainActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         binding.startButton.setOnClickListener { requestPermissionsAndStart() }
+        binding.touchpadButton.setOnClickListener { startTouchpad() }
         binding.accessibilityButton.setOnClickListener {
             startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
         }
@@ -53,6 +54,21 @@ class MainActivity : AppCompatActivity() {
             }
         }
         binding.status.text = permissionSummary()
+    }
+
+    private fun startTouchpad() {
+        if (Build.VERSION.SDK_INT >= 23 && !Settings.canDrawOverlays(this)) {
+            binding.status.text = "Da farko ka ba ASHIRU AIR TOUCH izinin Display over other apps."
+            startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName")))
+            return
+        }
+        if (!isAirTouchAccessibilityEnabled()) {
+            binding.status.text = "Da farko ka kunna ASHIRU AIR TOUCH a Accessibility settings."
+            startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+            return
+        }
+        ContextCompat.startForegroundService(this, Intent(this, TouchpadOverlayService::class.java))
+        binding.status.text = "Floating Touchpad yana aiki. Danna ƙaramin alamar da ta bayyana domin buɗe touchpad."
     }
 
     override fun onResume() {
@@ -80,7 +96,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         if (Build.VERSION.SDK_INT >= 23 && !Settings.canDrawOverlays(this)) {
-            binding.status.text = "Ka kunna 'Display over other apps', ka dawo nan, sannan danna START AIR TOUCH."
+            binding.status.text = "Ka kunna 'Display over other apps', ka dawo nan, sannan danna START AIR MOUSE."
             startActivity(
                 Intent(
                     Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
@@ -91,7 +107,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         if (!isAirTouchAccessibilityEnabled()) {
-            binding.status.text = "Ka kunna ASHIRU AIR TOUCH a Accessibility settings, sannan ka dawo ka danna START AIR TOUCH."
+            binding.status.text = "Ka kunna ASHIRU AIR TOUCH a Accessibility settings, sannan ka dawo ka danna START AIR MOUSE."
             startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
             return
         }
@@ -99,8 +115,8 @@ class MainActivity : AppCompatActivity() {
         ContextCompat.startForegroundService(
             this, Intent(this, AirTouchCameraService::class.java)
         )
-        binding.status.text = "AIR TOUCH yana aiki a kan sauran apps. Babban yatsa da manuni = mouse; haɗa su = click; buɗe hannu ka motsa sama/ƙasa = scroll."
-        binding.startButton.text = "AIR TOUCH RUNNING"
+        binding.status.text = "AIR MOUSE yana aiki. Babban yatsa da manuni = mouse; haɗa su = click; motsa hannu sama/ƙasa = scroll."
+        binding.startButton.text = "AIR MOUSE RUNNING"
     }
 
     private fun isAirTouchAccessibilityEnabled(): Boolean {
@@ -125,6 +141,6 @@ class MainActivity : AppCompatActivity() {
         val cameraMark = if (camera) "✓" else "✗"
         val overlayMark = if (overlay) "✓" else "✗"
         val accessibilityMark = if (accessibility) "✓" else "✗"
-        return "Izini: Camera $cameraMark  •  Floating tracking $overlayMark  •  Accessibility $accessibilityMark\n\nDanna maɓallan izini, sannan START AIR TOUCH."
+        return "Izini: Camera $cameraMark  •  Floating overlay $overlayMark  •  Accessibility $accessibilityMark\n\nAir Mouse na bukatar camera. Touchpad na bukatar overlay da Accessibility."
     }
 }
