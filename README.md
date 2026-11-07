@@ -1,23 +1,30 @@
 # ASHIRU AIR TOUCH
 
-Native Android hands-free phone control using the front camera, MediaPipe Hand Landmarker, CameraX, and an explicitly enabled Android Accessibility Service.
+Native Android phone control with a camera-based Air Mouse and a laptop-style floating touchpad. Uses CameraX, MediaPipe Hand Landmarker, Android WindowManager overlays, and an explicitly enabled Android Accessibility Service.
 
-## Smart gesture controls
+## Modes
 
-- **Two-finger mouse:** the floating, fading cursor follows the midpoint between the thumb and index fingertips over other apps; both fingers contribute to pointer movement.
-- **Pinch to click:** bring thumb and index finger together. The click is sent to the cursor midpoint. A stable pinch is treated as one click only until the fingers separate; the threshold is scaled to palm width.
-- **Open-hand directional scroll:** move the hand upward to scroll the current app upward, or downward to scroll it downward. You do not need to fold the other fingers or pinch; an open palm works. Pinching thumb and index remains reserved for clicking. Small movements and excessive sideways drift are ignored.
-- **Open palm control:** an open palm is an active scrolling pose, not a pause command.
-- **Noise rejection:** smoothed coordinates, four-frame gesture confirmation, cooldowns, gesture release hysteresis, and a one-hand-only detector reduce accidental actions.
-- **Background camera service:** a foreground notification indicates that camera tracking is active and provides a Stop action.
+### Air Mouse
+- The floating, fading cursor follows the midpoint between thumb and index fingertips over other apps.
+- Pinch thumb and index together for one click.
+- Move the hand upward/downward to scroll the foreground app.
+- Open hand is an active scrolling pose, not a pause command.
+
+### Floating Touchpad (v0.6.0)
+- Start **FARA FLOATING TOUCHPAD** from the app, then tap the floating ⌖ bubble to open the touch surface over any foreground app.
+- One-finger movement moves the on-screen pointer; a tap clicks; a quick second tap produces a second click for double-click behavior.
+- Hold, move, and release to send a drag gesture.
+- Two-finger vertical movement sends a scroll gesture.
+- The touchpad can be hidden while its floating bubble remains available. Stop the service from its persistent notification.
+- The pointer is a drawn overlay cursor and taps/drags/scrolls are dispatched through Android Accessibility. It is not a hardware mouse device, and some protected/system screens may block injected gestures.
 
 ## Permissions and first use
 
-1. Allow Camera permission.
-2. Allow Display over other apps so the finger trail can be drawn above other apps.
-3. Enable **ASHIRU AIR TOUCH** in Android Accessibility settings. This is required for tap and scroll gestures.
-4. Return to the app and press **START AIR TOUCH**.
-5. Open another app and test with your hand in front of the front camera, with good lighting.
+1. Allow **Display over other apps** for both floating modes.
+2. Enable **ASHIRU AIR TOUCH** in Android Accessibility settings. This is required to send taps, drags, and scrolls to other apps.
+3. For Air Mouse only, allow Camera permission and press **FARA AIR MOUSE**.
+4. For Touchpad mode, press **FARA FLOATING TOUCHPAD**, then tap the floating ⌖ bubble to open the pad.
+5. Test in another app. Keep the device awake and allow the service notification while using it.
 
 ## Build
 
@@ -29,15 +36,16 @@ For a local build, download the model to `app/src/main/assets/hand_landmarker.ta
 
 ## Important limitations
 
-- The app uses MediaPipe's pretrained hand-landmark model plus deterministic gesture filtering. It does **not** train itself on personal behaviour or read the meaning of arbitrary gestures.
-- Camera tracking needs the front camera to remain available. Android may stop camera access after force-stop, permission revocation, or some battery-saving actions.
-- Lock-screen gestures are intentionally not included.
-- Gesture accuracy depends on lighting, camera placement, hand visibility, and the device's camera performance.
-- Accessibility permission is powerful. The service only dispatches the tap and swipe gestures implemented in this app; enable it only if you trust this build.
+- Android Accessibility gesture dispatch simulates touch gestures. It does not create a native system mouse pointer or guarantee PC-style right-click/hover in every app.
+- Protected screens, some games, banking apps, lock screens, and system UI may reject overlay input or accessibility gestures.
+- Android battery management may stop background services. Camera tracking needs the front camera to remain available.
+- The Air Mouse uses MediaPipe's pretrained hand-landmark model plus deterministic gesture filtering. It does not train itself or understand arbitrary intentions.
+- Gesture accuracy depends on lighting, camera placement, and device performance.
+- Accessibility permission is powerful. The service only sends the gestures implemented in this app; enable it only if you trust this build.
 
 ## Technology
 
 - Kotlin, AndroidX, CameraX
 - MediaPipe Tasks Vision Hand Landmarker in VIDEO mode
-- Android foreground service and WindowManager overlay
+- Android foreground services and WindowManager overlays
 - Android AccessibilityService gesture dispatch
