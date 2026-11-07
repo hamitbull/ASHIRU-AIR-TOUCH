@@ -8,11 +8,11 @@
         android:textStyle="bold" app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintStart_toStartOf="parent" app:layout_constraintEnd_toEndOf="parent"/>
     <TextView android:id="@+id/subtitle" android:layout_width="0dp" android:layout_height="wrap_content"
-        android:text="Sarrafa wayarka da motsin hannu cikin basira" android:textColor="#B8B9C5" android:textSize="14sp"
+        android:text="Air Mouse + Computer-style Floating Touchpad" android:textColor="#B8B9C5" android:textSize="14sp"
         app:layout_constraintTop_toBottomOf="@id/title" app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" android:layout_marginTop="6dp"/>
     <TextView android:id="@+id/status" android:layout_width="0dp" android:layout_height="0dp"
-        android:text="AI tracking • Pinch = click • Yatsa daya = scroll • Bude tafin hannu = pause"
+        android:text="Air Mouse: sarrafa da hannu a gaban camera. Touchpad: motsa kibiya da yatsa kamar laptop."
         android:textColor="#FFFFFF" android:textSize="16sp" android:gravity="center"
         app:layout_constraintTop_toBottomOf="@id/subtitle" app:layout_constraintBottom_toTopOf="@id/overlayButton"
         app:layout_constraintStart_toStartOf="parent" app:layout_constraintEnd_toEndOf="parent"
@@ -29,8 +29,14 @@
         app:layout_constraintBottom_toTopOf="@id/startButton"
         app:layout_constraintStart_toStartOf="parent" app:layout_constraintEnd_toEndOf="parent"
         android:layout_marginBottom="6dp"/>
+    <com.google.android.material.button.MaterialButton android:id="@+id/touchpadButton"
+        android:layout_width="0dp" android:layout_height="wrap_content"
+        android:text="FARA FLOATING TOUCHPAD" android:textAllCaps="false" app:cornerRadius="12dp"
+        app:layout_constraintBottom_toTopOf="@id/startButton"
+        app:layout_constraintStart_toStartOf="parent" app:layout_constraintEnd_toEndOf="parent"
+        android:layout_marginBottom="58dp"/>
     <com.google.android.material.button.MaterialButton android:id="@+id/startButton"
-        android:layout_width="0dp" android:layout_height="wrap_content" android:text="FARA AIR TOUCH"
+        android:layout_width="0dp" android:layout_height="wrap_content" android:text="FARA AIR MOUSE"
         android:textAllCaps="false" app:cornerRadius="14dp"
         app:layout_constraintBottom_toBottomOf="parent" app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"/>
